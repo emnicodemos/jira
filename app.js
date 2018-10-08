@@ -4,13 +4,19 @@ var async = require('async');
 var configs = require('./configs.js');
 		
 async.auto({
-	importFromJira: function(cb) {
+	importProjects: function(cb) {
+		request({ url: configs.jira.baseUrl + 'project', headers: configs.jira.headers }, function(error, response, body){
+			if(error || response.statusCode !== 200) return cb('API Error');
+			cb(null, JSON.parse(body));
+		});
+	},
+	importIssues: function(cb) {
 		var issues = [];
 		getIssues(0);
 		function getIssues(startAt) {
-			var url = configs.jira.baseUrl + startAt;
+			var url = configs.jira.baseUrl + 'search?maxResults=' + configs.jira.maxResults + '&startAt=' + startAt;
 			request({ url: url, headers: configs.jira.headers }, function(error, response, body){
-				if(error || response.statusCode !== 200) return console.error('API Error');
+				if(error || response.statusCode !== 200) return cb('API Error');
 			
 				var result = JSON.parse(body);
 				result.issues.forEach(function(issue){
@@ -29,10 +35,19 @@ async.auto({
 	},
 	purge: ['sqlConnect', function(results, cb) {
 		new sql.Request()
-		.query('DELETE FROM Subtasks; DELETE FROM Stories; DELETE FROM Epics', cb);
+		.query('DELETE FROM Subtasks; DELETE FROM Stories; DELETE FROM Epics; DELETE FROM Projects', cb);
 	}],
-	saveEpics: ['importFromJira', 'purge', function(results, cb) {
-		async.eachSeries(filterByIssueType(results.importFromJira, 'Epic'), function(epic, cb){
+	saveProjects: ['importProjects', 'purge', function(results, cb) {
+		async.eachSeries(results.importProjects, function(project, cb){
+			new sql.Request()
+			.input('projectID', sql.VarChar(50), project.id)
+			.input('projectKey', sql.VarChar(50), project.key)
+			.input('name', sql.VarChar(50), project.name)
+			.query('INSERT INTO Projects VALUES (@projectID, @projectKey, @name)', cb);
+		}, cb);
+	}],
+	saveEpics: ['importIssues', 'saveProjects', function(results, cb) {
+		async.eachSeries(filterByIssueType(results.importIssues, 'Epic'), function(epic, cb){
 			new sql.Request()
 			.input('epicID', sql.VarChar(50), epic.id)
 			.input('epicKey', sql.VarChar(50), epic.key)
@@ -46,7 +61,7 @@ async.auto({
 		}, cb);
 	}],
 	saveStories: ['saveEpics', function(results, cb) {
-		async.eachSeries(filterByIssueType(results.importFromJira, 'Story'), function(story, cb){
+		async.eachSeries(filterByIssueType(results.importIssues, 'Story'), function(story, cb){
 			new sql.Request()
 			.input('storyID', sql.VarChar(50), story.id)
 			.input('storyKey', sql.VarChar(50), story.key)
@@ -59,7 +74,7 @@ async.auto({
 		}, cb);
 	}],
 	saveSubtasks: ['saveStories', function(results, cb) {
-		async.eachSeries(filterByIssueType(results.importFromJira, 'Sub-task'), function(subtask, cb){
+		async.eachSeries(filterByIssueType(results.importIssues, 'Sub-task'), function(subtask, cb){
 			new sql.Request()
 			.input('subtaskID', sql.VarChar(50), subtask.id)
 			.input('subtaskKey', sql.VarChar(50), subtask.key)
