@@ -35,55 +35,63 @@ async.auto({
 	},
 	purge: ['sqlConnect', function(results, cb) {
 		new sql.Request()
-		.query('DELETE FROM Subtasks; DELETE FROM Stories; DELETE FROM Epics; DELETE FROM Projects', cb);
+		.query('DELETE FROM Indicators; DELETE FROM Subtasks; DELETE FROM Stories; DELETE FROM Epics; DELETE FROM Projects', cb);
 	}],
 	saveProjects: ['importProjects', 'purge', function(results, cb) {
 		async.eachSeries(results.importProjects, function(project, cb){
 			new sql.Request()
-			.input('projectID', sql.VarChar(50), project.id)
-			.input('projectKey', sql.VarChar(50), project.key)
-			.input('name', sql.VarChar(50), project.name)
-			.query('INSERT INTO Projects VALUES (@projectID, @projectKey, @name)', cb);
+			.input('ProjectID', sql.VarChar(50), project.id)
+			.input('ProjectKey', sql.VarChar(50), project.key)
+			.input('Name', sql.VarChar(50), project.name)
+			.query('INSERT INTO Projects VALUES (@ProjectID, @ProjectKey, @Name)', cb);
 		}, cb);
 	}],
 	saveEpics: ['importIssues', 'saveProjects', function(results, cb) {
 		async.eachSeries(filterByIssueType(results.importIssues, 'Epic'), function(epic, cb){
 			new sql.Request()
-			.input('epicID', sql.VarChar(50), epic.id)
-			.input('epicKey', sql.VarChar(50), epic.key)
-			.input('projectKey', sql.VarChar(50), epic.fields.project.key)
-			.input('issueType', sql.VarChar(50), epic.fields.issuetype.name)
-			.input('summary', sql.VarChar(50), epic.fields.summary)
-			.input('status', sql.VarChar(50), epic.fields.status.name)
-			.input('assignee', sql.VarChar(50), epic.fields.assignee ? epic.fields.assignee.displayName : '')
-			.input('duedate', sql.Date, epic.fields.duedate)
-			.query('INSERT INTO Epics VALUES (@epicID, @epicKey, @projectKey, @issueType, @summary, @status, @assignee, @duedate)', cb);
+			.input('EpicID', sql.VarChar(50), epic.id)
+			.input('EpicKey', sql.VarChar(50), epic.key)
+			.input('ProjectKey', sql.VarChar(50), epic.fields.project.key)
+			.input('IssueType', sql.VarChar(50), epic.fields.issuetype.name)
+			.input('Summary', sql.VarChar(50), epic.fields.summary)
+			.input('Status', sql.VarChar(50), epic.fields.status.name)
+			.input('Assignee', sql.VarChar(50), epic.fields.assignee ? epic.fields.assignee.displayName : '')
+			.input('DueDate', sql.Date, epic.fields.duedate)
+			.input('StartDateBaseline', sql.Date, epic.fields.customfield_10028)
+			.input('EndDateBaseline', sql.Date, epic.fields.customfield_10029)
+			.query('INSERT INTO Epics VALUES (@EpicID, @EpicKey, @ProjectKey, @IssueType, @Summary, @Status, @Assignee, @DueDate, @StartDateBaseline, @EndDateBaseline)', cb);
 		}, cb);
 	}],
 	saveStories: ['saveEpics', function(results, cb) {
 		async.eachSeries(filterByIssueType(results.importIssues, 'Story'), function(story, cb){
 			new sql.Request()
-			.input('storyID', sql.VarChar(50), story.id)
-			.input('storyKey', sql.VarChar(50), story.key)
-			.input('epicKey', sql.VarChar(50), story.fields.customfield_10013)
-			.input('issueType', sql.VarChar(50), story.fields.issuetype.name)
-			.input('summary', sql.VarChar(50), story.fields.summary)
-			.input('status', sql.VarChar(50), story.fields.status.name)
-			.input('assignee', sql.VarChar(50), story.fields.assignee ? story.fields.assignee.displayName : '')
-			.query('INSERT INTO Stories VALUES (@storyID, @storyKey, @epicKey, @issueType, @summary, @status, @assignee)', cb);
+			.input('StoryID', sql.VarChar(50), story.id)
+			.input('StoryKey', sql.VarChar(50), story.key)
+			.input('EpicKey', sql.VarChar(50), story.fields.customfield_10013)
+			.input('IssueType', sql.VarChar(50), story.fields.issuetype.name)
+			.input('Summary', sql.VarChar(50), story.fields.summary)
+			.input('Status', sql.VarChar(50), story.fields.status.name)
+			.input('Assignee', sql.VarChar(50), story.fields.assignee ? story.fields.assignee.displayName : '')
+			.input('DueDate', sql.Date, story.fields.duedate)
+			.input('StartDateBaseline', sql.Date, story.fields.customfield_10028)
+			.input('EndDateBaseline', sql.Date, story.fields.customfield_10029)
+			.query('INSERT INTO Stories VALUES (@StoryID, @StoryKey, @EpicKey, @IssueType, @Summary, @Status, @Assignee, @DueDate, @StartDateBaseline, @EndDateBaseline)', cb);
 		}, cb);
 	}],
 	saveSubtasks: ['saveStories', function(results, cb) {
 		async.eachSeries(filterByIssueType(results.importIssues, 'Sub-task'), function(subtask, cb){
 			new sql.Request()
-			.input('subtaskID', sql.VarChar(50), subtask.id)
-			.input('subtaskKey', sql.VarChar(50), subtask.key)
-			.input('storyID', sql.VarChar(50), subtask.fields.parent.id)
-			.input('issueType', sql.VarChar(50), subtask.fields.issuetype.name)
-			.input('summary', sql.VarChar(50), subtask.fields.summary)
-			.input('status', sql.VarChar(50), subtask.fields.status.name)
-			.input('assignee', sql.VarChar(50), subtask.fields.assignee ? subtask.fields.assignee.displayName : '')
-			.query('INSERT INTO Subtasks VALUES (@subtaskID, @subtaskKey, @storyID, @issueType, @summary, @status, @assignee)', function(err){
+			.input('SubtaskID', sql.VarChar(50), subtask.id)
+			.input('SubtaskKey', sql.VarChar(50), subtask.key)
+			.input('StoryID', sql.VarChar(50), subtask.fields.parent.id)
+			.input('IssueType', sql.VarChar(50), subtask.fields.issuetype.name)
+			.input('Summary', sql.VarChar(50), subtask.fields.summary)
+			.input('Status', sql.VarChar(50), subtask.fields.status.name)
+			.input('Assignee', sql.VarChar(50), subtask.fields.assignee ? subtask.fields.assignee.displayName : '')
+			.input('DueDate', sql.Date, subtask.fields.duedate)
+			.input('StartDateBaseline', sql.Date, subtask.fields.customfield_10028)
+			.input('EndDateBaseline', sql.Date, subtask.fields.customfield_10029)
+			.query('INSERT INTO Subtasks VALUES (@SubtaskID, @SubtaskKey, @StoryID, @IssueType, @Summary, @Status, @Assignee, @DueDate, @StartDateBaseline, @EndDateBaseline)', function(err){
 				if (err) console.log(subtask.fields.parent.id);
 				cb();
 			});
